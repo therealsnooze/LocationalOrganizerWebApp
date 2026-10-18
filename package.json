@@ -1,0 +1,19 @@
+{
+  "name": "locational-organizer-web-app",
+  "version": "1.0.0",
+  "description": "Bookmark places on a map of LA County and attach files to them.",
+  "main": "server/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.3.0",
+    "leaflet": "^1.9.4",
+    "multer": "^2.4.0"
+  }
+}
