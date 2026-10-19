@@ -7,7 +7,6 @@ module.exports = {
   DATA_DIR: path.join(ROOT, 'data'),
   UPLOAD_DIR: path.join(ROOT, 'uploads'),
   PUBLIC_DIR: path.join(ROOT, 'public'),
-  LEAFLET_DIR: path.join(ROOT, 'node_modules', 'leaflet', 'dist'),
 
   // Rough LA County box, including Catalina and San Clemente islands.
   BOUNDS: { south: 32.75, west: -119.0, north: 34.85, east: -117.6 },
