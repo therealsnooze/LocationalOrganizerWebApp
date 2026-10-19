@@ -1,16 +1,27 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { pathToFileURL } = require('node:url');
+const { createClient } = require('@libsql/client');
 const { DATA_DIR } = require('./config');
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
+// Turso (hosted SQLite) when deployed, a local SQLite file otherwise.
+function connect() {
+  if (process.env.TURSO_DATABASE_URL) {
+    return createClient({
+      url: process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+  }
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  return createClient({ url: pathToFileURL(path.join(DATA_DIR, 'app.db')).href });
+}
 
-const db = new DatabaseSync(path.join(DATA_DIR, 'app.db'));
+const client = connect();
 
-db.exec(`
-  PRAGMA foreign_keys = ON;
-  PRAGMA journal_mode = WAL;
-
+// Deleting a location deletes its files rows explicitly (see routes/locations.js)
+// rather than relying on ON DELETE CASCADE, which needs PRAGMA foreign_keys on
+// every connection.
+const SCHEMA = `
   CREATE TABLE IF NOT EXISTS locations (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT    NOT NULL,
@@ -31,6 +42,41 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_files_location ON files(location_id);
-`);
+`;
 
-module.exports = db;
+// Created on first query, and retried on the next one if it fails.
+let ready = null;
+function init() {
+  ready ??= client.executeMultiple(SCHEMA).catch((err) => {
+    ready = null;
+    throw err;
+  });
+  return ready;
+}
+
+function toObjects({ rows, columns }) {
+  return rows.map((row) => Object.fromEntries(columns.map((name, i) => [name, row[i]])));
+}
+
+async function all(sql, args = []) {
+  await init();
+  return toObjects(await client.execute({ sql, args }));
+}
+
+async function get(sql, args = []) {
+  return (await all(sql, args))[0];
+}
+
+async function run(sql, args = []) {
+  await init();
+  const result = await client.execute({ sql, args });
+  return { lastInsertRowid: Number(result.lastInsertRowid), changes: result.rowsAffected };
+}
+
+// Runs several statements in one transaction.
+async function batch(statements) {
+  await init();
+  await client.batch(statements, 'write');
+}
+
+module.exports = { all, get, run, batch };
