@@ -1,13 +1,12 @@
 const express = require('express');
 const multer = require('multer');
-const { PORT, PUBLIC_DIR, LEAFLET_DIR } = require('./config');
+const { PORT, PUBLIC_DIR } = require('./config');
 const { HttpError } = require('./http-error');
 
 const app = express();
 
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(PUBLIC_DIR));
-app.use('/vendor/leaflet', express.static(LEAFLET_DIR));
 
 app.use('/api/locations', require('./routes/locations'));
 app.use('/api/files', require('./routes/files'));
