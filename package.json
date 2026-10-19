@@ -12,6 +12,8 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@vercel/blob": "^2.8.2",
     "express": "^5.3.0",
     "leaflet": "^1.9.4",
     "multer": "^2.4.0"
