@@ -2,11 +2,12 @@
 
 Bookmark places on a map of LA County and attach files to them. Proof of concept:
 plain HTML/CSS/JS frontend with Leaflet + OpenStreetMap, Node/Express backend,
-SQLite database, uploads stored on local disk.
+SQLite database (a local file, or Turso when deployed), uploads on local disk
+(or Vercel Blob when deployed).
 
 ## Run
 
-Requires Node.js 22.13+ (uses the built-in `node:sqlite` module).
+Requires Node.js 22.13+.
 
 ```sh
 npm install
@@ -15,28 +16,43 @@ npm start
 
 Then open http://localhost:3000. Set `PORT` to use a different port.
 
+## Deploy to Vercel
+
+`public/` is served by Vercel's CDN and `api/index.js` runs the Express app as a
+serverless function (`vercel.json` sends every `/api/*` request there). Vercel's disk
+doesn't persist, so the deployed app needs:
+
+- **Turso** (hosted SQLite): set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+- **Vercel Blob** (a *private* store) connected to the project, which sets
+  `BLOB_READ_WRITE_TOKEN`.
+
+Without those variables the server uses `data/app.db` and `uploads/`. Uploads are
+capped at 4 MB because Vercel rejects request bodies over 4.5 MB.
+
 ## Use
 
 - **Add a place:** click the map, enter a name and notes, then save.
 - **Find an address:** use the search box, pick a result, then "Bookmark this place".
 - **Attach files:** open a place, then drop files on the panel or choose them
-  (images, PDF, text, CSV, Word, Excel; 10 MB max each).
+  (images, PDF, text, CSV, Word, Excel; 4 MB max each).
 - **Edit / delete:** open a place and use the buttons in the panel. Deleting a place
   also deletes its files from disk.
 
 ## Layout
 
 ```
+api/index.js       Vercel serverless entry point (re-exports server/app.js)
 server/            Express app
-  index.js         entry point, static files, error handler
+  app.js           routes, static files, error handler
+  index.js         local entry point (app.listen)
   config.js        paths, LA County bounds, upload limits and allowed types
-  db.js            SQLite schema (locations, files)
-  uploads.js       multer setup and on-disk file helpers
+  db.js            database client (Turso or local file) and schema
+  uploads.js       multer setup and file storage (Vercel Blob or local disk)
   routes/          locations, files, geocode (Nominatim proxy)
 public/            frontend (no build step)
   js/app.js        wires map, panel, and search together
-data/app.db        created on first run (gitignored)
-uploads/           uploaded files, stored under random names (gitignored)
+data/app.db        local database, created on first run (gitignored)
+uploads/           local uploads, stored under random names (gitignored)
 ```
 
 ## API
