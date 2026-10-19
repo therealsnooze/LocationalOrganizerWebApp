@@ -1,7 +1,7 @@
 import { h, formatBytes, formatDate, formatCoords } from './dom.js';
 
 const ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx';
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024; // keep in sync with MAX_FILE_SIZE in server/config.js
 
 export function createPanel(element) {
   function render(...children) {
@@ -128,7 +128,7 @@ export function createPanel(element) {
       error.clear();
       const tooBig = chosen.filter((f) => f.size > MAX_BYTES);
       const ok = chosen.filter((f) => f.size <= MAX_BYTES);
-      const problems = tooBig.map((f) => `${f.name}: larger than 10 MB`);
+      const problems = tooBig.map((f) => `${f.name}: larger than 4 MB`);
 
       const pending = ok.map((f) => f.name);
       renderFiles(pending);
@@ -153,7 +153,7 @@ export function createPanel(element) {
     const dropzone = h('div', { class: 'dropzone' },
       'Drop files here or ',
       h('button', { type: 'button', class: 'link-button', onclick: () => fileInput.click() }, 'choose files'),
-      h('small', {}, 'Images, PDF, text, CSV, Word, Excel · up to 10 MB each'),
+      h('small', {}, 'Images, PDF, text, CSV, Word, Excel · up to 4 MB each'),
       fileInput,
     );
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
