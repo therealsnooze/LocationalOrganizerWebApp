@@ -2,46 +2,21 @@ const express = require('express');
 const db = require('../db');
 const { BOUNDS } = require('../config');
 const { HttpError, parseId } = require('../http-error');
-const { upload, removeStoredFile, mimeTypeFor } = require('../uploads');
+const { upload, saveFile, removeFile, mimeTypeFor } = require('../uploads');
 
 const router = express.Router();
 
 const NAME_MAX = 100;
 const DESCRIPTION_MAX = 2000;
 
-const selectLocation = db.prepare(`
+const SELECT_LOCATIONS = `
   SELECT l.*, COUNT(f.id) AS file_count
   FROM locations l LEFT JOIN files f ON f.location_id = l.id
-  WHERE l.id = ?
-  GROUP BY l.id
-`);
-const selectAllLocations = db.prepare(`
-  SELECT l.*, COUNT(f.id) AS file_count
-  FROM locations l LEFT JOIN files f ON f.location_id = l.id
-  GROUP BY l.id
-  ORDER BY l.created_at DESC, l.id DESC
-`);
-const insertLocation = db.prepare(
-  'INSERT INTO locations (name, description, lat, lng) VALUES (?, ?, ?, ?)'
-);
-const updateLocation = db.prepare(
-  'UPDATE locations SET name = ?, description = ? WHERE id = ?'
-);
-const deleteLocation = db.prepare('DELETE FROM locations WHERE id = ?');
-const selectFilesForLocation = db.prepare(
-  'SELECT id, location_id, original_name, mime_type, size, uploaded_at FROM files WHERE location_id = ? ORDER BY uploaded_at DESC, id DESC'
-);
-const selectStoredNames = db.prepare('SELECT stored_name FROM files WHERE location_id = ?');
-const insertFile = db.prepare(`
-  INSERT INTO files (location_id, original_name, stored_name, mime_type, size)
-  VALUES (?, ?, ?, ?, ?)
-`);
-const selectFile = db.prepare(
-  'SELECT id, location_id, original_name, mime_type, size, uploaded_at FROM files WHERE id = ?'
-);
+`;
+const FILE_COLUMNS = 'id, location_id, original_name, mime_type, size, uploaded_at';
 
-function getLocationOr404(id) {
-  const location = selectLocation.get(id);
+async function getLocationOr404(id) {
+  const location = await db.get(`${SELECT_LOCATIONS} WHERE l.id = ? GROUP BY l.id`, [id]);
   if (!location) throw new HttpError(404, 'Location not found');
   return location;
 }
@@ -69,61 +44,75 @@ function validateCoords(body) {
   return { lat, lng };
 }
 
-router.get('/', (req, res) => {
-  res.json(selectAllLocations.all());
+router.get('/', async (req, res) => {
+  res.json(await db.all(`${SELECT_LOCATIONS} GROUP BY l.id ORDER BY l.created_at DESC, l.id DESC`));
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { name, description } = validateText(req.body ?? {});
   const { lat, lng } = validateCoords(req.body ?? {});
-  const { lastInsertRowid } = insertLocation.run(name, description, lat, lng);
-  res.status(201).json(getLocationOr404(lastInsertRowid));
+  const { lastInsertRowid } = await db.run(
+    'INSERT INTO locations (name, description, lat, lng) VALUES (?, ?, ?, ?)',
+    [name, description, lat, lng]
+  );
+  res.status(201).json(await getLocationOr404(lastInsertRowid));
 });
 
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const id = parseId(req.params.id);
-  getLocationOr404(id);
+  await getLocationOr404(id);
   const { name, description } = validateText(req.body ?? {});
-  updateLocation.run(name, description, id);
-  res.json(getLocationOr404(id));
+  await db.run('UPDATE locations SET name = ?, description = ? WHERE id = ?', [name, description, id]);
+  res.json(await getLocationOr404(id));
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const id = parseId(req.params.id);
-  getLocationOr404(id);
-  const storedNames = selectStoredNames.all(id).map((row) => row.stored_name);
-  deleteLocation.run(id); // file rows go with it via ON DELETE CASCADE
-  storedNames.forEach(removeStoredFile);
+  await getLocationOr404(id);
+  const storedNames = (await db.all('SELECT stored_name FROM files WHERE location_id = ?', [id]))
+    .map((row) => row.stored_name);
+  await db.batch([
+    { sql: 'DELETE FROM files WHERE location_id = ?', args: [id] },
+    { sql: 'DELETE FROM locations WHERE id = ?', args: [id] },
+  ]);
+  await Promise.all(storedNames.map(removeFile));
   res.status(204).end();
 });
 
-router.get('/:id/files', (req, res) => {
+router.get('/:id/files', async (req, res) => {
   const id = parseId(req.params.id);
-  getLocationOr404(id);
-  res.json(selectFilesForLocation.all(id));
+  await getLocationOr404(id);
+  res.json(await db.all(
+    `SELECT ${FILE_COLUMNS} FROM files WHERE location_id = ? ORDER BY uploaded_at DESC, id DESC`,
+    [id]
+  ));
 });
 
 router.post(
   '/:id/files',
-  // Check the location before multer writes anything to disk.
-  (req, res, next) => {
+  // Check the location before accepting the upload.
+  async (req, res, next) => {
     req.locationId = parseId(req.params.id);
-    getLocationOr404(req.locationId);
+    await getLocationOr404(req.locationId);
     next();
   },
   upload.single('file'),
-  (req, res) => {
+  async (req, res) => {
     if (!req.file) throw new HttpError(400, 'No file uploaded (expected form field "file")');
-    const { originalname, filename, size } = req.file;
+    const { originalname, buffer, size } = req.file;
+    const mimeType = mimeTypeFor(originalname);
+    const storedName = await saveFile(buffer, mimeType);
     let fileId;
     try {
-      fileId = insertFile.run(req.locationId, originalname, filename, mimeTypeFor(originalname), size)
-        .lastInsertRowid;
+      ({ lastInsertRowid: fileId } = await db.run(
+        'INSERT INTO files (location_id, original_name, stored_name, mime_type, size) VALUES (?, ?, ?, ?, ?)',
+        [req.locationId, originalname, storedName, mimeType, size]
+      ));
     } catch (err) {
-      removeStoredFile(filename);
+      await removeFile(storedName);
       throw err;
     }
-    res.status(201).json(selectFile.get(fileId));
+    res.status(201).json(await db.get(`SELECT ${FILE_COLUMNS} FROM files WHERE id = ?`, [fileId]));
   }
 );
 
