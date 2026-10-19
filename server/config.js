@@ -11,7 +11,8 @@ module.exports = {
   // Rough LA County box, including Catalina and San Clemente islands.
   BOUNDS: { south: 32.75, west: -119.0, north: 34.85, east: -117.6 },
 
-  MAX_FILE_SIZE: 10 * 1024 * 1024,
+  // Vercel rejects request bodies over 4.5 MB, so stay under that.
+  MAX_FILE_SIZE: 4 * 1024 * 1024,
 
   // Allowed upload extensions and the MIME type we record for each. Browsers report
   // MIME types inconsistently (CSV as application/vnd.ms-excel, unknowns as
