@@ -1,5 +1,4 @@
 const express = require('express');
-const { BOUNDS } = require('../config');
 const { HttpError } = require('../http-error');
 
 const router = express.Router();
@@ -10,6 +9,16 @@ const USER_AGENT = 'LocationalOrganizerPoC/1.0 (local development)';
 const MIN_INTERVAL_MS = 1000; // policy: at most 1 request per second
 
 let lastRequestAt = 0;
+
+// "west,south,east,north" from the client's current map view, or null if absent/invalid.
+function parseViewbox(value) {
+  if (typeof value !== 'string') return null;
+  const [west, south, east, north] = value.split(',').map(Number);
+  const valid = [west, south, east, north].every(Number.isFinite)
+    && west >= -180 && east <= 180 && west < east
+    && south >= -90 && north <= 90 && south < north;
+  return valid ? { west, south, east, north } : null;
+}
 
 router.get('/', async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -26,10 +35,10 @@ router.get('/', async (req, res) => {
     q,
     format: 'jsonv2',
     limit: '5',
-    countrycodes: 'us',
-    viewbox: `${BOUNDS.west},${BOUNDS.north},${BOUNDS.east},${BOUNDS.south}`,
-    bounded: '1',
   });
+  // Without bounded=1 this only ranks nearby results higher; it doesn't exclude others.
+  const viewbox = parseViewbox(req.query.viewbox);
+  if (viewbox) params.set('viewbox', `${viewbox.west},${viewbox.north},${viewbox.east},${viewbox.south}`);
 
   let response;
   try {
