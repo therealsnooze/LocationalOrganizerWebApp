@@ -22,8 +22,22 @@ const client = connect();
 // rather than relying on ON DELETE CASCADE, which needs PRAGMA foreign_keys on
 // every connection.
 const SCHEMA = `
+  CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT    NOT NULL,
+    created_at    TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT    PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS locations (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER REFERENCES users(id),
     name        TEXT    NOT NULL,
     description TEXT    NOT NULL DEFAULT '',
     lat         REAL    NOT NULL,
@@ -44,10 +58,21 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_files_location ON files(location_id);
 `;
 
+async function migrate() {
+  await client.executeMultiple(SCHEMA);
+  // Databases created before accounts existed have no locations.user_id yet.
+  try {
+    await client.execute('ALTER TABLE locations ADD COLUMN user_id INTEGER REFERENCES users(id)');
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) throw err;
+  }
+  await client.execute('CREATE INDEX IF NOT EXISTS idx_locations_user ON locations(user_id)');
+}
+
 // Created on first query, and retried on the next one if it fails.
 let ready = null;
 function init() {
-  ready ??= client.executeMultiple(SCHEMA).catch((err) => {
+  ready ??= migrate().catch((err) => {
     ready = null;
     throw err;
   });
