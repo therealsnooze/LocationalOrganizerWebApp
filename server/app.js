@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { PUBLIC_DIR, MAX_FILE_SIZE } = require('./config');
 const { HttpError } = require('./http-error');
+const { requireUser } = require('./auth');
 
 const app = express();
 
@@ -9,9 +10,10 @@ app.use(express.json({ limit: '100kb' }));
 // Only used locally; on Vercel, public/ is served by the CDN.
 app.use(express.static(PUBLIC_DIR));
 
-app.use('/api/locations', require('./routes/locations'));
-app.use('/api/files', require('./routes/files'));
-app.use('/api/geocode', require('./routes/geocode'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/locations', requireUser, require('./routes/locations'));
+app.use('/api/files', requireUser, require('./routes/files'));
+app.use('/api/geocode', requireUser, require('./routes/geocode'));
 
 app.use('/api', (req, res, next) => next(new HttpError(404, 'Not found')));
 
