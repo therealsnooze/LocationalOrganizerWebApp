@@ -20,6 +20,10 @@
       <button type="submit" class="btn btn-primary">Search</button>
       <ul id="search-results" class="search-results" hidden></ul>
     </form>
+    <div id="account" class="account" hidden>
+      <span id="account-name" class="account-name"></span>
+      <button id="logout-button" type="button" class="btn btn-small">Log out</button>
+    </div>
   </header>
 
   <main class="layout">
@@ -27,6 +31,7 @@
     <aside id="panel" class="panel" aria-live="polite"></aside>
   </main>
 
+  <div id="auth" class="auth" hidden></div>
   <div id="toast" class="toast" role="status" hidden></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
