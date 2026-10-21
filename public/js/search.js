@@ -1,7 +1,7 @@
 import { h } from './dom.js';
 import { api } from './api.js';
 
-export function initSearch({ form, input, results }, { onPick }) {
+export function initSearch({ form, input, results }, { getViewbox, onPick }) {
   const submitBtn = form.querySelector('button[type="submit"]');
 
   function hide() {
@@ -22,9 +22,9 @@ export function initSearch({ form, input, results }, { onPick }) {
     submitBtn.disabled = true;
     show(h('li', { class: 'result-empty' }, 'Searching…'));
     try {
-      const matches = await api.geocode(query);
+      const matches = await api.geocode(query, getViewbox());
       if (!matches.length) {
-        show(h('li', { class: 'result-empty' }, 'No matches inside LA County.'));
+        show(h('li', { class: 'result-empty' }, 'No matches found.'));
         return;
       }
       show(...matches.map((match) =>
