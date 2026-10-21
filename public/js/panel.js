@@ -19,7 +19,7 @@ export function createPanel(element) {
 
   function showWelcome(placeCount) {
     render(h('div', { class: 'welcome' },
-      h('h2', {}, 'Bookmark places in LA County'),
+      h('h2', {}, 'Bookmark places anywhere'),
       h('p', {}, 'Click anywhere on the map to drop a pin, or search for an address above. Then attach files to any saved place.'),
       h('div', { class: 'stat' },
         placeCount === 0 ? 'No saved places yet.' : `${placeCount} saved place${placeCount === 1 ? '' : 's'}. Click a pin to open it.`),
