@@ -1,6 +1,6 @@
 # Locational Organizer
 
-Bookmark places on a map of LA County and attach files to them. Proof of concept:
+Bookmark places anywhere in the world on a map and attach files to them. Proof of concept:
 plain HTML/CSS/JS frontend with Leaflet + OpenStreetMap, Node/Express backend,
 SQLite database (a local file, or Turso when deployed), uploads on local disk
 (or Vercel Blob when deployed).
@@ -49,7 +49,7 @@ server/            Express app
   app.js           routes, static files, error handler
   auth.js          password hashing (scrypt), sessions, requireUser middleware
   index.js         local entry point (app.listen)
-  config.js        paths, LA County bounds, upload limits and allowed types
+  config.js        paths, upload limits and allowed types
   db.js            database client (Turso or local file), schema and migration
   uploads.js       multer setup and file storage (Vercel Blob or local disk)
   routes/          auth, locations, files, geocode (Nominatim proxy)
@@ -79,4 +79,4 @@ to other accounts return 404.
 | POST | /api/locations/:id/files | upload (multipart field `file`) |
 | GET | /api/files/:id | download |
 | DELETE | /api/files/:id | delete file |
-| GET | /api/geocode?q= | address search, limited to LA County |
+| GET | /api/geocode?q=&viewbox= | worldwide address search; optional `west,south,east,north` favors results in that area |
