@@ -2,9 +2,9 @@ import { h } from './dom.js';
 
 /* global L */
 
-const LA_CENTER = [34.05, -118.25];
-// Keep in sync with BOUNDS in server/config.js.
-export const LA_BOUNDS = L.latLngBounds([32.75, -119.0], [34.85, -117.6]);
+const START_CENTER = [34.05, -118.25]; // Los Angeles
+// The whole world, once. Web Mercator tiles stop at about ±85° latitude.
+const WORLD_BOUNDS = L.latLngBounds([-85.0511, -180], [85.0511, 180]);
 
 function pinIcon(kind) {
   return L.divIcon({
@@ -30,19 +30,20 @@ function labelFor(location) {
 
 export function createMap(element, { onMapClick, onMarkerClick }) {
   const map = L.map(element, {
-    center: LA_CENTER,
+    center: START_CENTER,
     zoom: 10,
-    minZoom: 8,
-    maxBounds: LA_BOUNDS.pad(0.15),
+    minZoom: 2,
+    maxBounds: WORLD_BOUNDS,
     maxBoundsViscosity: 1.0,
   });
 
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
+    noWrap: true, // one copy of the world, so every click is a real longitude
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
-  map.on('click', (e) => onMapClick(e.latlng, LA_BOUNDS.contains(e.latlng)));
+  map.on('click', (e) => onMapClick(e.latlng.wrap()));
 
   const markers = new Map();
   let selectedId = null;
@@ -112,5 +113,16 @@ export function createMap(element, { onMapClick, onMarkerClick }) {
     if (!map.getBounds().pad(-0.1).contains([lat, lng])) map.panTo([lat, lng]);
   }
 
-  return { upsertMarker, removeMarker, setSelected, showDraft, clearDraft, showSearchResult, clearSearchResult, panTo };
+  // The visible area, clamped to the world, for biasing address search.
+  function getViewbox() {
+    const view = map.getBounds();
+    return {
+      west: Math.max(view.getWest(), -180),
+      south: Math.max(view.getSouth(), -90),
+      east: Math.min(view.getEast(), 180),
+      north: Math.min(view.getNorth(), 90),
+    };
+  }
+
+  return { getViewbox, upsertMarker, removeMarker, setSelected, showDraft, clearDraft, showSearchResult, clearSearchResult, panTo };
 }
