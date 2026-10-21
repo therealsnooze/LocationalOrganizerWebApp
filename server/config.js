@@ -8,9 +8,6 @@ module.exports = {
   UPLOAD_DIR: path.join(ROOT, 'uploads'),
   PUBLIC_DIR: path.join(ROOT, 'public'),
 
-  // Rough LA County box, including Catalina and San Clemente islands.
-  BOUNDS: { south: 32.75, west: -119.0, north: 34.85, east: -117.6 },
-
   // Vercel rejects request bodies over 4.5 MB, so stay under that.
   MAX_FILE_SIZE: 4 * 1024 * 1024,
 
