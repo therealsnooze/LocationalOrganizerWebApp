@@ -11,13 +11,7 @@ let selectedId = null;
 const auth = createAuthScreen(document.getElementById('auth'));
 const panel = createPanel(document.getElementById('panel'));
 const map = createMap(document.getElementById('map'), {
-  onMapClick: (latlng, insideCounty) => {
-    if (!insideCounty) {
-      toast('Pick a spot inside LA County');
-      return;
-    }
-    startDraft(latlng);
-  },
+  onMapClick: (latlng) => startDraft(latlng),
   onMarkerClick: (id) => select(id),
 });
 
@@ -28,6 +22,7 @@ initSearch(
     results: document.getElementById('search-results'),
   },
   {
+    getViewbox: () => map.getViewbox(),
     onPick: (result) => map.showSearchResult(result, () => startDraft(result, result.name)),
   },
 );
