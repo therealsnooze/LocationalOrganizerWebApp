@@ -1,3 +1,10 @@
+let onUnauthorized = () => {};
+
+// Called when the session is missing or expired on any non-auth request.
+export function setUnauthorizedHandler(handler) {
+  onUnauthorized = handler;
+}
+
 async function request(method, url, body) {
   const options = { method, headers: {} };
   if (body instanceof FormData) {
@@ -14,6 +21,7 @@ async function request(method, url, body) {
     throw new Error('Could not reach the server. Is it running?');
   }
 
+  if (response.status === 401 && !url.startsWith('/api/auth/')) onUnauthorized();
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`);
@@ -21,6 +29,11 @@ async function request(method, url, body) {
 }
 
 export const api = {
+  me: () => request('GET', '/api/auth/me'),
+  register: (credentials) => request('POST', '/api/auth/register', credentials),
+  login: (credentials) => request('POST', '/api/auth/login', credentials),
+  logout: () => request('POST', '/api/auth/logout'),
+
   listLocations: () => request('GET', '/api/locations'),
   createLocation: (location) => request('POST', '/api/locations', location),
   updateLocation: (id, changes) => request('PUT', `/api/locations/${id}`, changes),
