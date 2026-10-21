@@ -1,6 +1,5 @@
 const express = require('express');
 const db = require('../db');
-const { BOUNDS } = require('../config');
 const { HttpError, parseId } = require('../http-error');
 const { upload, saveFile, removeFile, mimeTypeFor } = require('../uploads');
 
@@ -42,8 +41,8 @@ function validateCoords(body) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     throw new HttpError(400, 'lat and lng must be numbers');
   }
-  if (lat < BOUNDS.south || lat > BOUNDS.north || lng < BOUNDS.west || lng > BOUNDS.east) {
-    throw new HttpError(400, 'Location must be inside LA County');
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new HttpError(400, 'lat must be between -90 and 90, lng between -180 and 180');
   }
   return { lat, lng };
 }
