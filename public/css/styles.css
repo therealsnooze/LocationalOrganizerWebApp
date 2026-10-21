@@ -68,14 +68,6 @@ body {
 
 .brand-name { font-weight: 650; font-size: 15px; }
 
-.brand-scope {
-  font-size: 12px;
-  color: var(--muted);
-  padding: 1px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-
 .search {
   position: relative;
   display: flex;
@@ -434,7 +426,7 @@ label {
 /* ---------- Narrow screens: panel becomes a bottom sheet ---------- */
 
 @media (max-width: 760px) {
-  .topbar .brand-name, .topbar .brand-scope, .account-name { display: none; }
+  .topbar .brand-name, .account-name { display: none; }
 
   .layout { flex-direction: column; }
 
