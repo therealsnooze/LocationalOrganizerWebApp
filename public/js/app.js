@@ -1,4 +1,5 @@
-import { api } from './api.js';
+import { api, setUnauthorizedHandler } from './api.js';
+import { createAuthScreen } from './auth.js';
 import { toast } from './dom.js';
 import { createMap } from './map.js';
 import { createPanel } from './panel.js';
@@ -7,6 +8,7 @@ import { initSearch } from './search.js';
 const locations = new Map();
 let selectedId = null;
 
+const auth = createAuthScreen(document.getElementById('auth'));
 const panel = createPanel(document.getElementById('panel'));
 const map = createMap(document.getElementById('map'), {
   onMapClick: (latlng, insideCounty) => {
@@ -31,8 +33,29 @@ initSearch(
 );
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !e.target.closest('#search-form')) showWelcome();
+  if (e.key === 'Escape' && !e.target.closest('#search-form, #auth')) showWelcome();
 });
+
+// The session ran out mid-use: log back in, then reload so nothing stale is left on screen.
+setUnauthorizedHandler(async () => {
+  await auth.prompt('Your session expired. Log in again.');
+  window.location.reload();
+});
+
+document.getElementById('logout-button').addEventListener('click', async () => {
+  try {
+    await api.logout();
+  } catch (err) {
+    toast(err.message);
+    return;
+  }
+  window.location.reload();
+});
+
+function showAccount(user) {
+  document.getElementById('account-name').textContent = user.username;
+  document.getElementById('account').hidden = false;
+}
 
 function deselect() {
   selectedId = null;
@@ -129,6 +152,16 @@ function startEdit(id) {
 }
 
 async function init() {
+  let user;
+  try {
+    ({ user } = await api.me());
+  } catch (err) {
+    toast(err.message);
+    return;
+  }
+  user ??= await auth.prompt();
+  showAccount(user);
+
   try {
     for (const location of await api.listLocations()) {
       locations.set(location.id, location);
