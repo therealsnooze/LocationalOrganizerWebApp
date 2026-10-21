@@ -48,5 +48,9 @@ export const api = {
   deleteFile: (id) => request('DELETE', `/api/files/${id}`),
   fileUrl: (id) => `/api/files/${id}`,
 
-  geocode: (query) => request('GET', `/api/geocode?${new URLSearchParams({ q: query })}`),
+  // viewbox ({west, south, east, north}) favors results in that area without excluding others.
+  geocode: (query, { west, south, east, north }) => request(
+    'GET',
+    `/api/geocode?${new URLSearchParams({ q: query, viewbox: [west, south, east, north].join(',') })}`
+  ),
 };
